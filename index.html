@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Donde Raulito — Huevos</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-512.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#b45309">
+<style>
+:root{--bg:#fffbeb;--card:#ffffff;--ink:#1c1917;--muted:#78716c;--line:#fde68a;--brand:#b45309;--brand2:#f59e0b;--ok:#15803d;--bad:#dc2626;--radius:16px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:86px}
+header{background:linear-gradient(135deg,#b45309,#f59e0b);color:#fff;padding:20px 16px 16px;position:sticky;top:0;z-index:5}
+header h1{font-size:21px;font-weight:800}
+header p{font-size:13px;opacity:.9;margin-top:2px}
+main{max-width:640px;margin:0 auto;padding:14px}
+.view{display:none}.view.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(180,83,9,.08)}
+.card h2{font-size:15px;margin-bottom:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.big{font-size:26px;font-weight:800}
+.lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.pos{color:var(--ok)}.neg{color:var(--bad)}
+button{font:inherit;cursor:pointer;border:none;border-radius:12px}
+.btn{background:var(--brand);color:#fff;padding:12px 14px;font-weight:700;width:100%}
+.btn.alt{background:#fff7ed;color:var(--brand);border:1px solid var(--brand2)}
+.btn.sm{width:auto;padding:8px 12px;font-size:13px}
+.btn.ghost{background:transparent;color:var(--muted);border:1px solid #e7e5e4}
+.rowbtns{display:flex;gap:8px}.rowbtns>*{flex:1}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #d6d3d1;border-radius:10px;font:inherit;background:#fff}
+input:focus,select:focus{outline:2px solid var(--brand2);border-color:transparent}
+.item{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f4}
+.item:last-child{border-bottom:none}
+.item .t{font-weight:700;font-size:14px}.item .s{font-size:12px;color:var(--muted)}
+.item .amt{font-weight:800;white-space:nowrap}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:#fef3c7;color:#92400e}
+.pill.ok{background:#dcfce7;color:#166534}.pill.pend{background:#fee2e2;color:#991b1b}
+.iconbtn{background:#fff7ed;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;color:var(--brand);text-decoration:none;display:inline-block}
+.del{color:var(--bad);background:none;font-size:13px;padding:6px}
+nav{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.96);border-top:1px solid var(--line);display:flex;z-index:5;backdrop-filter:blur(6px)}
+nav button{flex:1;background:none;padding:10px 2px 12px;font-size:11px;font-weight:700;color:var(--muted)}
+nav button.on{color:var(--brand)}
+nav button span{display:block;font-size:20px;margin-bottom:2px}
+.empty{color:var(--muted);font-size:14px;text-align:center;padding:14px}
+.switch{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;margin:8px 0}
+.switch input{width:20px;height:20px;accent-color:var(--ok)}
+.search{margin-bottom:10px}
+textarea{font-size:13px}
+.note{font-size:12px;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>Donde Raulito</h1>
+  <p>Venta de huevos a domicilio · Pesos chilenos</p>
+</header>
+<main>
+
+<!-- INICIO -->
+<section class="view on" id="v-inicio">
+  <div class="card">
+    <div class="lbl">Esta semana (<span id="sem-rango"></span>)</div>
+    <div class="grid2" style="margin-top:10px">
+      <div><div class="lbl">Vendido</div><div class="big" id="sem-ventas">$0</div></div>
+      <div><div class="lbl">Bandejas</div><div class="big" id="sem-bandejas">0</div></div>
+      <div><div class="lbl">Gastos</div><div class="big" id="sem-gastos">$0</div></div>
+      <div><div class="lbl">Ganancia neta</div><div class="big pos" id="sem-ganancia">$0</div></div>
+    </div>
+    <p class="note" style="margin-top:8px">Ganancia = ventas − costo de las bandejas vendidas − bencina − bolsas.</p>
+  </div>
+  <div class="card">
+    <h2>Stock que queda</h2>
+    <div id="stock"></div>
+  </div>
+  <div class="card">
+    <h2>Resumen general</h2>
+    <div class="grid2">
+      <div><div class="lbl">Inversión inicial</div><div class="big" id="gen-inversion" style="font-size:20px">$0</div></div>
+      <div><div class="lbl">Comprado (total)</div><div class="big" id="gen-compras" style="font-size:20px">$0</div></div>
+      <div><div class="lbl">Vendido (total)</div><div class="big" id="gen-ventas" style="font-size:20px">$0</div></div>
+      <div><div class="lbl">Ganancia (total)</div><div class="big pos" id="gen-ganancia" style="font-size:20px">$0</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Entregas pendientes</h2>
+    <div id="pendientes"></div>
+  </div>
+  <button class="btn" id="btn-compartir">Compartir resumen de la semana (WhatsApp)</button>
+</section>
+
+<!-- VENTAS -->
+<section class="view" id="v-ventas">
+  <div class="card">
+    <h2>Nueva venta / pedido</h2>
+    <label>Cliente</label>
+    <input list="dl-clientes" id="ven-cliente" placeholder="Escribe o elige un cliente">
+    <datalist id="dl-clientes"></datalist>
+    <label>Tipo de huevo</label>
+    <select id="ven-tipo"></select>
+    <div class="grid2">
+      <div><label>Bandejas</label><input type="number" id="ven-bandejas" value="1" min="1" inputmode="numeric"></div>
+      <div><label>Precio por bandeja ($)</label><input type="number" id="ven-precio" inputmode="numeric"></div>
+    </div>
+    <label>Fecha de entrega</label>
+    <input type="date" id="ven-fecha">
+    <label class="switch"><input type="checkbox" id="ven-entregado"> Ya entregado</label>
+    <label class="switch"><input type="checkbox" id="ven-pagado" checked> Ya pagado (pago inmediato)</label>
+    <button class="btn" id="btn-venta" style="margin-top:8px">Guardar venta</button>
+  </div>
+  <div class="card"><h2>Ventas recientes</h2><div id="lista-ventas"></div></div>
+</section>
+
+<!-- COMPRAS -->
+<section class="view" id="v-compras">
+  <div class="card">
+    <h2>Nueva compra al proveedor</h2>
+    <label>Tipo de huevo</label>
+    <select id="com-tipo"></select>
+    <div class="grid2">
+      <div><label>Cajas</label><input type="number" id="com-cajas" value="1" min="1" inputmode="numeric"></div>
+      <div><label>Precio por caja ($)</label><input type="number" id="com-precio" inputmode="numeric"></div>
+    </div>
+    <label>Huevos devueltos por merma (opcional)</label>
+    <input type="number" id="com-merma" value="0" min="0" inputmode="numeric">
+    <label>Fecha</label>
+    <input type="date" id="com-fecha">
+    <p class="note" id="com-resumen" style="margin:8px 0"></p>
+    <button class="btn" id="btn-compra">Guardar compra</button>
+  </div>
+  <div class="card"><h2>Compras</h2><div id="lista-compras"></div></div>
+  <div class="card">
+    <h2>Registrar gasto (bencina / bolsas)</h2>
+    <label>Tipo de gasto</label>
+    <select id="gas-tipo"><option>Bencina</option><option>Bolsas plásticas</option><option>Otro</option></select>
+    <div class="grid2">
+      <div><label>Monto ($)</label><input type="number" id="gas-monto" inputmode="numeric"></div>
+      <div><label>Fecha</label><input type="date" id="gas-fecha"></div>
+    </div>
+    <label>Nota (opcional)</label><input id="gas-nota" placeholder="Ej: bencina para repartos del sábado">
+    <button class="btn" id="btn-gasto" style="margin-top:10px">Guardar gasto</button>
+  </div>
+  <div class="card"><h2>Gastos recientes</h2><div id="lista-gastos"></div></div>
+</section>
+
+<!-- CLIENTES -->
+<section class="view" id="v-clientes">
+  <div class="card">
+    <h2>Agregar cliente</h2>
+    <label>Nombre</label><input id="cli-nombre" placeholder="Nombre del cliente">
+    <label>Teléfono (con 569...)</label><input id="cli-tel" inputmode="tel" placeholder="56912345678">
+    <button class="btn" id="btn-cliente" style="margin-top:10px">Guardar cliente</button>
+  </div>
+  <div class="card">
+    <input class="search" id="cli-buscar" placeholder="Buscar cliente...">
+    <div id="lista-clientes"></div>
+  </div>
+</section>
+
+<!-- AJUSTES -->
+<section class="view" id="v-ajustes">
+  <div class="card">
+    <h2>Precios actuales</h2>
+    <div id="precios"></div>
+    <p class="note">Si el proveedor cambia un precio, actualízalo aquí. Las compras y ventas nuevas usan estos precios como sugerencia (se pueden cambiar al registrar).</p>
+    <button class="btn" id="btn-precios" style="margin-top:8px">Guardar precios</button>
+  </div>
+  <div class="card">
+    <h2>Inversión inicial ($)</h2>
+    <input type="number" id="cfg-inversion" inputmode="numeric">
+    <button class="btn alt" id="btn-inversion" style="margin-top:8px">Guardar inversión</button>
+  </div>
+  <div class="card">
+    <h2>Instalar en el celular</h2>
+    <p class="note" style="margin-bottom:10px">Instala la app en tu pantalla de inicio para abrirla como cualquier aplicacion, incluso sin internet.</p>
+    <button class="btn" id="btn-instalar" style="display:none">Instalar app</button>
+    <p class="note" id="instalar-ayuda">Si no aparece el boton: abre el menu de Chrome (tres puntos) y toca <b>"Instalar aplicacion"</b> o <b>"Agregar a pantalla de inicio"</b>.</p>
+  </div>
+  <div class="card">
+    <h2>Datos</h2>
+    <p class="note" style="margin-bottom:10px">Los datos se guardan en este celular. Para pasarlos al celular de tu esposa (o respaldarlos), exporta el archivo y luego impórtalo en el otro equipo. El archivo <b>datos-iniciales.json</b> trae los clientes, compras y ventas del Excel: impórtalo solo la primera vez.</p>
+    <div class="rowbtns">
+      <button class="btn alt" id="btn-exportar">Exportar respaldo</button>
+      <button class="btn alt" id="btn-importar-btn">Importar archivo</button>
+    </div>
+    <input type="file" id="file-importar" accept=".json,application/json" style="display:none">
+    <button class="btn ghost" id="btn-borrar" style="margin-top:12px">Borrar todos los datos de este celular</button>
+  </div>
+</section>
+</main>
+
+<nav>
+  <button data-v="inicio" class="on"><span>🏠</span>Inicio</button>
+  <button data-v="ventas"><span>🥚</span>Ventas</button>
+  <button data-v="compras"><span>📦</span>Compras</button>
+  <button data-v="clientes"><span>👥</span>Clientes</button>
+  <button data-v="ajustes"><span>⚙️</span>Ajustes</button>
+</nav>
+
+<script>
+'use strict';
+/* ===== Datos y calculos (funciones puras) ===== */
+var TIPOS_DEF = {
+  extra:      {nombre:'Extra',       huevosPorBandeja:30, bandejasPorCaja:6, precioCaja:27392, precioVenta:6500},
+  jumbo:      {nombre:'Jumbo',       huevosPorBandeja:20, bandejasPorCaja:5, precioCaja:31311, precioVenta:7500},
+  superextra: {nombre:'Súper Extra', huevosPorBandeja:20, bandejasPorCaja:5, precioCaja:18064, precioVenta:6800}
+};
+function estadoInicial(){
+  return {tipos:JSON.parse(JSON.stringify(TIPOS_DEF)), inversionInicial:92285, compras:[], ventas:[], clientes:[], gastos:[]};
+}
+function costoPorBandeja(tipos, clave){
+  var t = tipos[clave]; if(!t) return 0;
+  return Math.round(t.precioCaja / t.bandejasPorCaja);
+}
+function inicioSemana(fechaStr){ // lunes de la semana de fechaStr (YYYY-MM-DD)
+  var d = new Date(fechaStr + 'T12:00:00');
+  var dia = (d.getDay() + 6) % 7; // lunes=0
+  d.setDate(d.getDate() - dia);
+  return d;
+}
+function finSemana(fechaStr){ var d = inicioSemana(fechaStr); d.setDate(d.getDate()+6); return d; }
+function aStr(d){ return d.toISOString().slice(0,10); }
+function enSemana(fechaStr, refStr){
+  var ini = aStr(inicioSemana(refStr)), fin = aStr(finSemana(refStr));
+  return fechaStr >= ini && fechaStr <= fin;
+}
+function stockHuevos(st, clave){
+  var t = st.tipos[clave]; if(!t) return 0;
+  var h = 0;
+  st.compras.forEach(function(c){ if(c.tipo===clave){ h += c.cajas * t.bandejasPorCaja * t.huevosPorBandeja; h -= (c.mermaHuevos||0); }});
+  st.ventas.forEach(function(v){ if(v.tipo===clave){ h -= v.bandejas * t.huevosPorBandeja; }});
+  return h;
+}
+function resumenSemana(st, refStr){
+  var ventas = st.ventas.filter(function(v){ return enSemana(v.fecha, refStr); });
+  var gastos = st.gastos.filter(function(g){ return enSemana(g.fecha, refStr); });
+  var totalVentas = ventas.reduce(function(s,v){ return s + v.bandejas * v.precio; },0);
+  var costoVendidas = ventas.reduce(function(s,v){ return s + v.bandejas * (v.costoBandeja != null ? v.costoBandeja : costoPorBandeja(st.tipos, v.tipo)); },0);
+  var totalGastos = gastos.reduce(function(s,g){ return s + g.monto; },0);
+  var bandejas = ventas.reduce(function(s,v){ return s + v.bandejas; },0);
+  return {totalVentas:totalVentas, costoVendidas:costoVendidas, totalGastos:totalGastos,
+          bandejas:bandejas, ganancia: totalVentas - costoVendidas - totalGastos, nVentas: ventas.length};
+}
+function resumenGeneral(st){
+  var totalVentas = st.ventas.reduce(function(s,v){ return s + v.bandejas * v.precio; },0);
+  var costoVendidas = st.ventas.reduce(function(s,v){ return s + v.bandejas * (v.costoBandeja != null ? v.costoBandeja : costoPorBandeja(st.tipos, v.tipo)); },0);
+  var totalGastos = st.gastos.reduce(function(s,g){ return s + g.monto; },0);
+  var totalCompras = st.compras.reduce(function(s,c){ return s + c.cajas * c.precioCaja; },0);
+  return {totalVentas:totalVentas, totalCompras:totalCompras, totalGastos:totalGastos,
+          ganancia: totalVentas - costoVendidas - totalGastos};
+}
+function textoResumenSemana(st, refStr){
+  var r = resumenSemana(st, refStr);
+  var ini = inicioSemana(refStr), fin = finSemana(refStr);
+  function f(n){ return '$' + Math.round(n).toLocaleString('es-CL'); }
+  var stockTxt = Object.keys(st.tipos).map(function(k){
+    var h = stockHuevos(st,k), t = st.tipos[k];
+    return t.nombre + ': ' + Math.floor(h / t.huevosPorBandeja) + ' bandejas';
+  }).join(', ');
+  return 'Donde Raulito - Resumen semanal (' + aStr(ini) + ' al ' + aStr(fin) + ')\n' +
+    'Vendido: ' + f(r.totalVentas) + ' (' + r.bandejas + ' bandejas)\n' +
+    'Costo de lo vendido: ' + f(r.costoVendidas) + '\n' +
+    'Gastos (bencina/bolsas): ' + f(r.totalGastos) + '\n' +
+    'GANANCIA DE LA SEMANA: ' + f(r.ganancia) + '\n' +
+    'Stock que queda: ' + stockTxt;
+}
+/* ===== Fin funciones puras ===== */
+</script>
+<script>
+'use strict';
+var CLAVE = 'dondeRaulitoV1';
+var st;
+try { st = JSON.parse(localStorage.getItem(CLAVE)) || estadoInicial(); }
+catch(e){ st = estadoInicial(); }
+if(!st.tipos) st = estadoInicial();
+function guardar(){ localStorage.setItem(CLAVE, JSON.stringify(st)); }
+function $(id){ return document.getElementById(id); }
+function fmt(n){ return '$' + Math.round(n).toLocaleString('es-CL'); }
+function hoy(){ return aStr(new Date()); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function nombreTipo(k){ return st.tipos[k] ? st.tipos[k].nombre : k; }
+
+function llenarSelects(){
+  var html = Object.keys(st.tipos).map(function(k){ return '<option value="'+k+'">'+esc(st.tipos[k].nombre)+' (bandeja de '+st.tipos[k].huevosPorBandeja+')</option>'; }).join('');
+  $('ven-tipo').innerHTML = html; $('com-tipo').innerHTML = html;
+  $('dl-clientes').innerHTML = st.clientes.map(function(c){ return '<option value="'+esc(c.nombre)+'">'; }).join('');
+}
+function precioVentaSugerido(){ $('ven-precio').value = st.tipos[$('ven-tipo').value].precioVenta; }
+function precioCajaSugerido(){
+  $('com-precio').value = st.tipos[$('com-tipo').value].precioCaja; resumenCompra();
+}
+function resumenCompra(){
+  var t = st.tipos[$('com-tipo').value], cajas = parseInt($('com-cajas').value)||0, precio = parseInt($('com-precio').value)||0;
+  $('com-resumen').textContent = cajas + ' caja(s) = ' + (cajas*t.bandejasPorCaja) + ' bandejas (' + (cajas*t.bandejasPorCaja*t.huevosPorBandeja) + ' huevos). Total compra: ' + fmt(cajas*precio) + ' · Costo por bandeja: ' + fmt(precio/t.bandejasPorCaja);
+}
+function renderInicio(){
+  var h = hoy(), r = resumenSemana(st, h);
+  $('sem-rango').textContent = aStr(inicioSemana(h)) + ' al ' + aStr(finSemana(h));
+  $('sem-ventas').textContent = fmt(r.totalVentas);
+  $('sem-bandejas').textContent = r.bandejas;
+  $('sem-gastos').textContent = fmt(r.totalGastos);
+  var g = $('sem-ganancia'); g.textContent = fmt(r.ganancia); g.className = 'big ' + (r.ganancia>=0?'pos':'neg');
+  $('stock').innerHTML = Object.keys(st.tipos).map(function(k){
+    var t = st.tipos[k], huevos = stockHuevos(st,k), band = Math.floor(huevos/t.huevosPorBandeja), sueltos = huevos - band*t.huevosPorBandeja;
+    return '<div class="item"><div><div class="t">'+esc(t.nombre)+'</div><div class="s">bandeja de '+t.huevosPorBandeja+' huevos</div></div><div class="amt">'+band+' bandejas'+(sueltos? ' <span class="s">+ '+sueltos+' sueltos</span>':'')+'</div></div>';
+  }).join('');
+  var gen = resumenGeneral(st);
+  $('gen-inversion').textContent = fmt(st.inversionInicial||0);
+  $('gen-compras').textContent = fmt(gen.totalCompras);
+  $('gen-ventas').textContent = fmt(gen.totalVentas);
+  var gg = $('gen-ganancia'); gg.textContent = fmt(gen.ganancia); gg.className = 'big ' + (gen.ganancia>=0?'pos':'neg'); gg.style.fontSize='20px';
+  var pend = st.ventas.filter(function(v){ return !v.entregado || !v.pagado; });
+  $('pendientes').innerHTML = pend.length ? pend.map(function(v){
+    return '<div class="item"><div><div class="t">'+esc(v.cliente)+'</div><div class="s">'+esc(nombreTipo(v.tipo))+' · '+v.bandejas+' bandeja(s) · '+esc(v.fecha)+'</div></div><div>'+(!v.entregado?'<span class="pill pend">sin entregar</span> ':'')+(!v.pagado?'<span class="pill pend">sin pagar</span>':'')+'</div></div>';
+  }).join('') : '<div class="empty">Nada pendiente. Todo entregado y pagado.</div>';
+}
+function renderVentas(){
+  var lista = st.ventas.slice().sort(function(a,b){ return b.fecha.localeCompare(a.fecha) || b.id.localeCompare(a.id); }).slice(0,60);
+  $('lista-ventas').innerHTML = lista.length ? lista.map(function(v){
+    return '<div class="item"><div><div class="t">'+esc(v.cliente)+' <span class="pill '+(v.entregado&&v.pagado?'ok':'pend')+'">'+(v.entregado&&v.pagado?'completa':(!v.entregado?'sin entregar':'sin pagar'))+'</span></div><div class="s">'+esc(nombreTipo(v.tipo))+' · '+v.bandejas+' bandeja(s) · '+esc(v.fecha)+'</div></div><div style="text-align:right"><div class="amt">'+fmt(v.bandejas*v.precio)+'</div><button class="del" data-delv="'+v.id+'">eliminar</button></div></div>';
+  }).join('') : '<div class="empty">Aun no hay ventas registradas.</div>';
+}
+function renderCompras(){
+  var lista = st.compras.slice().sort(function(a,b){ return b.fecha.localeCompare(a.fecha); });
+  $('lista-compras').innerHTML = lista.length ? lista.map(function(c){
+    var t = st.tipos[c.tipo] || {bandejasPorCaja:0};
+    return '<div class="item"><div><div class="t">'+esc(nombreTipo(c.tipo))+' · '+c.cajas+' caja(s)</div><div class="s">'+(c.cajas*t.bandejasPorCaja)+' bandejas · '+esc(c.fecha)+(c.mermaHuevos?' · merma devuelta: '+c.mermaHuevos+' huevos':'')+'</div></div><div style="text-align:right"><div class="amt">'+fmt(c.cajas*c.precioCaja)+'</div><button class="del" data-delc="'+c.id+'">eliminar</button></div></div>';
+  }).join('') : '<div class="empty">Aun no hay compras registradas.</div>';
+  var gl = st.gastos.slice().sort(function(a,b){ return b.fecha.localeCompare(a.fecha); }).slice(0,40);
+  $('lista-gastos').innerHTML = gl.length ? gl.map(function(g){
+    return '<div class="item"><div><div class="t">'+esc(g.categoria)+'</div><div class="s">'+esc(g.fecha)+(g.nota?' · '+esc(g.nota):'')+'</div></div><div style="text-align:right"><div class="amt">'+fmt(g.monto)+'</div><button class="del" data-delg="'+g.id+'">eliminar</button></div></div>';
+  }).join('') : '<div class="empty">Sin gastos registrados.</div>';
+}
+function renderClientes(){
+  var q = ($('cli-buscar').value||'').toLowerCase();
+  var lista = st.clientes.filter(function(c){ return c.nombre.toLowerCase().indexOf(q)>=0; });
+  $('lista-clientes').innerHTML = lista.length ? lista.map(function(c){
+    var tel = (c.telefono||'').replace(/\D/g,'');
+    return '<div class="item"><div><div class="t">'+esc(c.nombre)+'</div><div class="s">'+esc(c.telefono||'sin telefono')+'</div></div><div>'+(tel?'<a class="iconbtn" href="https://wa.me/'+tel+'" target="_blank" rel="noopener">WhatsApp</a> <a class="iconbtn" href="tel:+'+tel+'">Llamar</a>':'')+' <button class="del" data-delcli="'+c.id+'">eliminar</button></div></div>';
+  }).join('') : '<div class="empty">No hay clientes con ese criterio.</div>';
+}
+function renderAjustes(){
+  $('precios').innerHTML = Object.keys(st.tipos).map(function(k){
+    var t = st.tipos[k];
+    return '<div style="border-bottom:1px solid #f5f5f4;padding:8px 0"><b>'+esc(t.nombre)+'</b> <span class="s" style="color:var(--muted);font-size:12px">bandeja de '+t.huevosPorBandeja+', '+t.bandejasPorCaja+' por caja · costo/bandeja '+fmt(costoPorBandeja(st.tipos,k))+' · margen/bandeja '+fmt(t.precioVenta-costoPorBandeja(st.tipos,k))+'</span><div class="grid2"><div><label>Precio caja ($)</label><input type="number" id="pc-'+k+'" value="'+t.precioCaja+'" inputmode="numeric"></div><div><label>Precio venta bandeja ($)</label><input type="number" id="pv-'+k+'" value="'+t.precioVenta+'" inputmode="numeric"></div></div></div>';
+  }).join('');
+  $('cfg-inversion').value = st.inversionInicial||0;
+}
+function renderTodo(){ llenarSelects(); renderInicio(); renderVentas(); renderCompras(); renderClientes(); renderAjustes(); }
+
+/* Navegacion */
+Array.prototype.forEach.call(document.querySelectorAll('nav button'), function(b){
+  b.addEventListener('click', function(){
+    Array.prototype.forEach.call(document.querySelectorAll('nav button'), function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    Array.prototype.forEach.call(document.querySelectorAll('.view'), function(v){ v.classList.remove('on'); });
+    $('v-'+b.getAttribute('data-v')).classList.add('on');
+    window.scrollTo(0,0);
+  });
+});
+/* Ventas */
+$('ven-tipo').addEventListener('change', precioVentaSugerido);
+$('btn-venta').addEventListener('click', function(){
+  var nombre = $('ven-cliente').value.trim();
+  var bandejas = parseInt($('ven-bandejas').value)||0, precio = parseInt($('ven-precio').value)||0;
+  if(!nombre){ alert('Falta el nombre del cliente.'); return; }
+  if(bandejas<1 || precio<1){ alert('Revisa bandejas y precio.'); return; }
+  var existe = st.clientes.some(function(c){ return c.nombre.toLowerCase()===nombre.toLowerCase(); });
+  if(!existe) st.clientes.push({id:uid(), nombre:nombre, telefono:''});
+  var tipo = $('ven-tipo').value;
+  st.ventas.push({id:uid(), fecha:$('ven-fecha').value||hoy(), cliente:nombre, tipo:tipo, bandejas:bandejas, precio:precio,
+    costoBandeja:costoPorBandeja(st.tipos,tipo), entregado:$('ven-entregado').checked, pagado:$('ven-pagado').checked});
+  guardar(); $('ven-cliente').value=''; $('ven-bandejas').value=1; renderTodo(); alert('Venta guardada: '+bandejas+' bandeja(s) por '+fmt(bandejas*precio));
+});
+/* Compras */
+$('com-tipo').addEventListener('change', precioCajaSugerido);
+$('com-cajas').addEventListener('input', resumenCompra);
+$('com-precio').addEventListener('input', resumenCompra);
+$('btn-compra').addEventListener('click', function(){
+  var tipo = $('com-tipo').value, cajas = parseInt($('com-cajas').value)||0, precio = parseInt($('com-precio').value)||0;
+  if(cajas<1 || precio<1){ alert('Revisa cajas y precio.'); return; }
+  st.tipos[tipo].precioCaja = precio; // el ultimo precio de compra queda como vigente
+  st.compras.push({id:uid(), fecha:$('com-fecha').value||hoy(), tipo:tipo, cajas:cajas, precioCaja:precio, mermaHuevos:parseInt($('com-merma').value)||0});
+  guardar(); $('com-merma').value=0; renderTodo(); precioCajaSugerido(); alert('Compra guardada: '+cajas+' caja(s) por '+fmt(cajas*precio));
+});
+/* Gastos */
+$('btn-gasto').addEventListener('click', function(){
+  var monto = parseInt($('gas-monto').value)||0;
+  if(monto<1){ alert('Falta el monto del gasto.'); return; }
+  st.gastos.push({id:uid(), fecha:$('gas-fecha').value||hoy(), categoria:$('gas-tipo').value, monto:monto, nota:$('gas-nota').value.trim()});
+  guardar(); $('gas-monto').value=''; $('gas-nota').value=''; renderTodo(); alert('Gasto guardado: '+fmt(monto));
+});
+/* Clientes */
+$('btn-cliente').addEventListener('click', function(){
+  var nombre = $('cli-nombre').value.trim();
+  if(!nombre){ alert('Falta el nombre.'); return; }
+  st.clientes.push({id:uid(), nombre:nombre, telefono:$('cli-tel').value.trim()});
+  guardar(); $('cli-nombre').value=''; $('cli-tel').value=''; renderTodo(); alert('Cliente guardado.');
+});
+$('cli-buscar').addEventListener('input', renderClientes);
+/* Ajustes */
+$('btn-precios').addEventListener('click', function(){
+  Object.keys(st.tipos).forEach(function(k){
+    st.tipos[k].precioCaja = parseInt($('pc-'+k).value)||st.tipos[k].precioCaja;
+    st.tipos[k].precioVenta = parseInt($('pv-'+k).value)||st.tipos[k].precioVenta;
+  });
+  guardar(); renderTodo(); precioVentaSugerido(); precioCajaSugerido(); alert('Precios actualizados.');
+});
+$('btn-inversion').addEventListener('click', function(){
+  st.inversionInicial = parseInt($('cfg-inversion').value)||0; guardar(); renderTodo(); alert('Inversion guardada.');
+});
+$('btn-compartir').addEventListener('click', function(){
+  var txt = textoResumenSemana(st, hoy());
+  if(navigator.share){ navigator.share({text:txt}).catch(function(){}); }
+  else window.open('https://wa.me/?text='+encodeURIComponent(txt), '_blank');
+});
+$('btn-exportar').addEventListener('click', function(){
+  var blob = new Blob([JSON.stringify(st,null,1)], {type:'application/json'});
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'donde-raulito-respaldo.json'; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+});
+$('btn-importar-btn').addEventListener('click', function(){ $('file-importar').click(); });
+$('file-importar').addEventListener('change', function(){
+  var f = this.files[0]; if(!f) return;
+  var rd = new FileReader();
+  rd.onload = function(){
+    try {
+      var d = JSON.parse(rd.result);
+      if(d.clientes && d.compras && d.ventas && !d.tipos){ // archivo de datos iniciales (del Excel)
+        if(!confirm('Se agregaran '+d.clientes.length+' clientes, '+d.compras.length+' compras y '+d.ventas.length+' ventas del Excel. Continuar?')) return;
+        d.clientes.forEach(function(c){
+          if(!st.clientes.some(function(x){ return x.nombre.toLowerCase()===c.nombre.toLowerCase(); }))
+            st.clientes.push({id:uid(), nombre:c.nombre, telefono:c.telefono||''});
+        });
+        d.compras.forEach(function(c){ st.compras.push({id:uid(), fecha:c.fecha, tipo:c.tipo, cajas:c.cajas, precioCaja:c.precioCaja, mermaHuevos:c.mermaHuevos||0}); });
+        d.ventas.forEach(function(v){ st.ventas.push({id:uid(), fecha:v.fecha, cliente:v.cliente, tipo:v.tipo, bandejas:v.bandejas, precio:v.precio, costoBandeja:null, entregado:v.entregado, pagado:v.pagado}); });
+      } else if(d.tipos && d.compras){ // respaldo completo
+        if(!confirm('Esto reemplaza TODOS los datos actuales de este celular por los del archivo. Continuar?')) return;
+        st = d;
+      } else { alert('El archivo no tiene el formato esperado.'); return; }
+      guardar(); renderTodo(); alert('Datos importados correctamente.');
+    } catch(e){ alert('No se pudo leer el archivo.'); }
+    $('file-importar').value='';
+  };
+  rd.readAsText(f);
+});
+$('btn-borrar').addEventListener('click', function(){
+  if(confirm('Seguro? Se borran compras, ventas, clientes y gastos de este celular.')){ st = estadoInicial(); guardar(); renderTodo(); }
+});
+/* Borrados (delegacion) */
+document.addEventListener('click', function(e){
+  var t = e.target;
+  function del(arr, id){ var i = st[arr].findIndex(function(x){ return x.id===id; }); if(i>=0 && confirm('Eliminar este registro?')){ st[arr].splice(i,1); guardar(); renderTodo(); } }
+  if(t.getAttribute('data-delv')) del('ventas', t.getAttribute('data-delv'));
+  if(t.getAttribute('data-delc')) del('compras', t.getAttribute('data-delc'));
+  if(t.getAttribute('data-delg')) del('gastos', t.getAttribute('data-delg'));
+  if(t.getAttribute('data-delcli')) del('clientes', t.getAttribute('data-delcli'));
+});
+/* Init */
+$('ven-fecha').value = hoy(); $('com-fecha').value = hoy(); $('gas-fecha').value = hoy();
+renderTodo(); precioVentaSugerido(); precioCajaSugerido();
+</script>
+<script>
+'use strict';
+/* PWA: service worker + instalacion */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(err){ console.log('SW no registrado', err); });
+  });
+}
+var promptInstalar = null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault(); promptInstalar = e;
+  document.getElementById('btn-instalar').style.display = 'block';
+  document.getElementById('instalar-ayuda').style.display = 'none';
+});
+document.getElementById('btn-instalar').addEventListener('click', function(){
+  if(!promptInstalar) return;
+  promptInstalar.prompt();
+  promptInstalar.userChoice.then(function(){ promptInstalar = null; document.getElementById('btn-instalar').style.display = 'none'; });
+});
+window.addEventListener('appinstalled', function(){
+  document.getElementById('btn-instalar').style.display = 'none';
+  document.getElementById('instalar-ayuda').textContent = 'App instalada. Buscala en tu pantalla de inicio.';
+});
+</script>
+</body>
+</html>
