@@ -189,6 +189,8 @@ textarea{font-size:13px}
       <button class="btn alt" id="btn-importar-btn">Importar archivo</button>
     </div>
     <input type="file" id="file-importar" accept=".json,application/json" style="display:none">
+    <button class="btn alt" id="btn-seed" style="margin-top:10px;width:100%">Cargar ventas del Excel (hoja 'segunda compra')</button>
+    <p class="note" style="margin-top:6px">En una instalacion nueva estas ventas ya vienen cargadas. Este boton sirve si la app ya estaba instalada de antes.</p>
     <button class="btn ghost" id="btn-borrar" style="margin-top:12px">Borrar todos los datos de este celular</button>
   </div>
 </section>
@@ -210,6 +212,32 @@ var TIPOS_DEF = {
   jumbo:      {nombre:'Jumbo',       huevosPorBandeja:20, bandejasPorCaja:5, precioCaja:31311, precioVenta:7500},
   superextra: {nombre:'Súper Extra', huevosPorBandeja:20, bandejasPorCaja:5, precioCaja:18064, precioVenta:6800}
 };
+
+/* Datos precargados del Excel, hoja 'segunda compra' (con correccion: Cony Ortiz = 3 bandejas Super Extra) */
+var SEED_EXCEL = {
+  compras: [
+    {id:'excel-c1', fecha:'2026-10-21', tipo:'superextra', cajas:6, precioCaja:18064, mermaHuevos:0},
+    {id:'excel-c2', fecha:'2026-10-21', tipo:'extra', cajas:5, precioCaja:27392, mermaHuevos:0},
+    {id:'excel-c3', fecha:'2026-10-21', tipo:'jumbo', cajas:2, precioCaja:31311, mermaHuevos:0}
+  ],
+  ventas: [{"fecha":"2026-10-23","cliente":"Nancy Chandia","tipo":"superextra","bandejas":2,"precio":6800,"entregado":true,"pagado":true},{"fecha":"2026-10-21","cliente":"Karina Yañez","tipo":"superextra","bandejas":1,"precio":6800,"entregado":true,"pagado":true},{"fecha":"2026-10-21","cliente":"Elizabeth Vielma","tipo":"superextra","bandejas":2,"precio":6800,"entregado":true,"pagado":true},{"fecha":"2026-10-25","cliente":"Marilyn Urbina","tipo":"superextra","bandejas":1,"precio":6800,"entregado":false,"pagado":false},{"fecha":"2026-10-21","cliente":"Isabel Llaranga","tipo":"jumbo","bandejas":1,"precio":7500,"entregado":true,"pagado":true},{"fecha":"2026-10-21","cliente":"Paty Vecina","tipo":"extra","bandejas":1,"precio":6500,"entregado":true,"pagado":true},{"fecha":"2026-10-21","cliente":"Rosario","tipo":"superextra","bandejas":1,"precio":6800,"entregado":true,"pagado":true},{"fecha":"2026-10-21","cliente":"Lili","tipo":"superextra","bandejas":1,"precio":6800,"entregado":true,"pagado":true},{"fecha":"2026-10-21","cliente":"Jorgue Vecino","tipo":"superextra","bandejas":1,"precio":6800,"entregado":true,"pagado":true},{"fecha":"2026-10-22","cliente":"Gabriel Muñoz","tipo":"extra","bandejas":1,"precio":6500,"entregado":true,"pagado":false},{"fecha":"2026-10-22","cliente":"Genaro Muñoz","tipo":"extra","bandejas":1,"precio":6500,"entregado":true,"pagado":false},{"fecha":"2026-10-22","cliente":"Fabiola Gamboa","tipo":"jumbo","bandejas":1,"precio":7500,"entregado":true,"pagado":true},{"fecha":"2026-10-23","cliente":"Karla Vecina","tipo":"jumbo","bandejas":1,"precio":7500,"entregado":false,"pagado":false},{"fecha":"2026-10-24","cliente":"Aide","tipo":"extra","bandejas":2,"precio":6500,"entregado":false,"pagado":false},{"fecha":"2026-10-23","cliente":"Justina Araya","tipo":"superextra","bandejas":1,"precio":6800,"entregado":true,"pagado":true},{"fecha":"2026-10-22","cliente":"Vecina","tipo":"extra","bandejas":1,"precio":6500,"entregado":true,"pagado":true},{"fecha":"2026-10-22","cliente":"Natali Cabeza","tipo":"extra","bandejas":1,"precio":6500,"entregado":true,"pagado":true},{"fecha":"2026-10-23","cliente":"Nanci Vecina","tipo":"superextra","bandejas":1,"precio":3300,"entregado":true,"pagado":true},{"fecha":"2026-10-23","cliente":"Carmen Zamora","tipo":"superextra","bandejas":2,"precio":6800,"entregado":false,"pagado":false},{"fecha":"2026-10-24","cliente":"Haida Vecina","tipo":"jumbo","bandejas":1,"precio":7500,"entregado":false,"pagado":false},{"fecha":null,"cliente":"Cony Ortiz","tipo":"superextra","bandejas":3,"precio":6800,"entregado":false,"pagado":false}]
+};
+function aplicarSeedExcel(st, fechaFallback){
+  if(st.excelSeed) return st;
+  SEED_EXCEL.compras.forEach(function(c){
+    if(!st.compras.some(function(x){ return x.id===c.id; })) st.compras.push(JSON.parse(JSON.stringify(c)));
+  });
+  SEED_EXCEL.ventas.forEach(function(v, i){
+    var id = 'excel-v' + (i+1);
+    if(st.ventas.some(function(x){ return x.id===id; })) return;
+    st.ventas.push({id:id, fecha: v.fecha || fechaFallback, cliente:v.cliente, tipo:v.tipo, bandejas:v.bandejas,
+      precio:v.precio, costoBandeja: costoPorBandeja(st.tipos, v.tipo), entregado:v.entregado, pagado:v.pagado});
+    if(!st.clientes.some(function(cl){ return cl.nombre.toLowerCase()===v.cliente.toLowerCase(); }))
+      st.clientes.push({id:'excel-cli-'+(i+1), nombre:v.cliente, telefono:''});
+  });
+  st.excelSeed = true;
+  return st;
+}
 function estadoInicial(){
   return {tipos:JSON.parse(JSON.stringify(TIPOS_DEF)), inversionInicial:92285, compras:[], ventas:[], clientes:[], gastos:[]};
 }
@@ -275,9 +303,11 @@ function textoResumenSemana(st, refStr){
 'use strict';
 var CLAVE = 'dondeRaulitoV1';
 var st;
-try { st = JSON.parse(localStorage.getItem(CLAVE)) || estadoInicial(); }
+var habiaDatos = false;
+try { var guardado = localStorage.getItem(CLAVE); habiaDatos = !!guardado; st = JSON.parse(guardado) || estadoInicial(); }
 catch(e){ st = estadoInicial(); }
 if(!st.tipos) st = estadoInicial();
+if(!habiaDatos){ st = aplicarSeedExcel(st, aStr(new Date())); try { localStorage.setItem(CLAVE, JSON.stringify(st)); } catch(e){} }
 function guardar(){ localStorage.setItem(CLAVE, JSON.stringify(st)); }
 function $(id){ return document.getElementById(id); }
 function fmt(n){ return '$' + Math.round(n).toLocaleString('es-CL'); }
@@ -449,6 +479,11 @@ $('file-importar').addEventListener('change', function(){
     $('file-importar').value='';
   };
   rd.readAsText(f);
+});
+$('btn-seed').addEventListener('click', function(){
+  if(st.excelSeed){ alert('Las ventas del Excel ya estan cargadas en este celular.'); return; }
+  st = aplicarSeedExcel(st, hoy()); guardar(); renderTodo();
+  alert('Ventas del Excel cargadas: 21 ventas, 27 bandejas, $180.800.');
 });
 $('btn-borrar').addEventListener('click', function(){
   if(confirm('Seguro? Se borran compras, ventas, clientes y gastos de este celular.')){ st = estadoInicial(); guardar(); renderTodo(); }
