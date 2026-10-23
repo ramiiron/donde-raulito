@@ -189,8 +189,8 @@ textarea{font-size:13px}
       <button class="btn alt" id="btn-importar-btn">Importar archivo</button>
     </div>
     <input type="file" id="file-importar" accept=".json,application/json" style="display:none">
-    <button class="btn alt" id="btn-seed" style="margin-top:10px;width:100%">Cargar ventas del Excel (hoja 'segunda compra')</button>
-    <p class="note" style="margin-top:6px">En una instalacion nueva estas ventas ya vienen cargadas. Este boton sirve si la app ya estaba instalada de antes.</p>
+    <button class="btn alt" id="btn-seed" style="margin-top:10px;width:100%">Cargar datos del Excel (ventas + 91 clientes)</button>
+    <p class="note" style="margin-top:6px">En una instalacion nueva estos datos ya vienen cargados, y los clientes se agregan solos al actualizar la app. Este boton sirve por si algo no se cargo.</p>
     <button class="btn ghost" id="btn-borrar" style="margin-top:12px">Borrar todos los datos de este celular</button>
   </div>
 </section>
@@ -213,6 +213,20 @@ var TIPOS_DEF = {
   superextra: {nombre:'Súper Extra', huevosPorBandeja:20, bandejasPorCaja:5, precioCaja:18064, precioVenta:6800}
 };
 
+
+/* Clientes del Excel (hoja 'primera compra': nombres y telefonos). Agregados el 2026-10-23 por decision expresa de Ramiro, sabiendo que la pagina es publica. */
+var SEED_CLIENTES = [{"nombre":"Sandra Fuentes","telefono":"56961923686"},{"nombre":"Isabel Llaranga","telefono":"56984616728"},{"nombre":"Ana Suarez","telefono":"56952888054"},{"nombre":"Evelyn Lobos","telefono":"56965816182"},{"nombre":"Monica Aravena","telefono":"56961980117"},{"nombre":"Alejandra Trangol","telefono":"56942700225"},{"nombre":"Silvia Pinilla","telefono":"56997885591"},{"nombre":"Carmen Vecina","telefono":"56984150536"},{"nombre":"Madelen","telefono":"56971644275"},{"nombre":"Hermana Espinoza","telefono":""},{"nombre":"Ximena Castillo","telefono":""},{"nombre":"Olga Aedo","telefono":""},{"nombre":"Delia Bugueno","telefono":"56998848821"},{"nombre":"Cathy estay","telefono":"56933825691"},{"nombre":"Lili Medina","telefono":"56983991010"},{"nombre":"Monica Piña","telefono":"56956907856"},{"nombre":"Romina Aravena","telefono":"56976726854"},{"nombre":"Haida Vecina","telefono":"56979094100"},{"nombre":"Tia Alexandra","telefono":"56989959984"},{"nombre":"Paola Rubio","telefono":"56959487383"},{"nombre":"Nancy Chandia","telefono":""},{"nombre":"Karina Yañez","telefono":"56961902362"},{"nombre":"Elizabeth Vielma","telefono":"56948599321"},{"nombre":"Marilyn Urbina","telefono":""},{"nombre":"Paty Vecina","telefono":""},{"nombre":"Rosario","telefono":""},{"nombre":"Lili","telefono":""},{"nombre":"Jorgue Vecino","telefono":""},{"nombre":"Gabriel Muñoz","telefono":""},{"nombre":"Genaro Muñoz","telefono":""},{"nombre":"Fabiola Gamboa","telefono":"56953948744"},{"nombre":"Karla Vecina","telefono":""},{"nombre":"Aide","telefono":""},{"nombre":"Justina Araya","telefono":""},{"nombre":"Vecina","telefono":""},{"nombre":"Natali Cabeza","telefono":""},{"nombre":"Nanci Vecina","telefono":""},{"nombre":"Carmen Zamora","telefono":""},{"nombre":"Cony Ortiz","telefono":""},{"nombre":"Janet Valdez","telefono":"56978604375"},{"nombre":"Vero Santibañez","telefono":"56975260086"},{"nombre":"Karina Reyes","telefono":"56933816018"},{"nombre":"Elva Araya","telefono":"56991950584"},{"nombre":"Maria Pavez","telefono":"56953892221"},{"nombre":"Gloria Rios","telefono":"56996533284"},{"nombre":"Nanci Chandia","telefono":"56951692342"},{"nombre":"Olivia Levicoy","telefono":"56992204168"},{"nombre":"Natali Cabezas","telefono":"56976965148"},{"nombre":"Tamata Figueroa","telefono":"56989048929"},{"nombre":"Lorena Buguenio","telefono":"56949794936"},{"nombre":"Belen Torres","telefono":"56971831877"},{"nombre":"Claudia Nabarrete","telefono":"56945492609"},{"nombre":"Lilian Areneda","telefono":"56959785004"},{"nombre":"Linda Valenzuela","telefono":"56935675056"},{"nombre":"Mabel Reborrello","telefono":"56989851897"},{"nombre":"Sofia Yañez Gonzalez","telefono":"56940416759"},{"nombre":"Carolina Padilla","telefono":"56982012360"},{"nombre":"Karla Vielma","telefono":"56987072993"},{"nombre":"Aracely Y Juanito","telefono":"56973071616"},{"nombre":"Isabel Pavez","telefono":"56942283792"},{"nombre":"Vanesa Castillo","telefono":"56981902468"},{"nombre":"Maria Carrasco","telefono":"56953086864"},{"nombre":"Rosario cartes","telefono":"56963564941"},{"nombre":"Silvana Castillo","telefono":"56998497939"},{"nombre":"Mariana Cabrera","telefono":"56992499712"},{"nombre":"Patricia Acosta Cartes","telefono":"56966314476"},{"nombre":"Amalia Fuentes","telefono":"56966087346"},{"nombre":"Arelis Hernandes","telefono":"56953933246"},{"nombre":"Elizabeth Madrid","telefono":"56942648727"},{"nombre":"Fernanda Valdez","telefono":"56981558907"},{"nombre":"Gabriela De Muñoz","telefono":"56922043628"},{"nombre":"Katiuska Perez","telefono":"56933031214"},{"nombre":"Marianela Capilla","telefono":"56985509500"},{"nombre":"Pamela Millan","telefono":"56981993794"},{"nombre":"Patricia Manrriquez","telefono":"56982743163"},{"nombre":"Sara Figueroa","telefono":"56947054526"},{"nombre":"Ximena Moris","telefono":"56956002697"},{"nombre":"Vernarda","telefono":"56945406972"},{"nombre":"Tamara Paty","telefono":"56934253334"},{"nombre":"Tia Yesica","telefono":"56923854621"},{"nombre":"Camila Cornejo","telefono":"56927699992"},{"nombre":"erick Vargas","telefono":"56942325344"},{"nombre":"Sonia Coro","telefono":"56963045392"},{"nombre":"Luz Maria","telefono":"56931357109"},{"nombre":"Ximena Rivas","telefono":"56975498995"},{"nombre":"Ximena Arevalos","telefono":"56949463648"},{"nombre":"Lorena Celis","telefono":"56959064570"},{"nombre":"Constanza Viajes","telefono":"56968988182"},{"nombre":"Carolina El Alba","telefono":"56982990522"},{"nombre":"Anamaria Mm Samuel","telefono":"56962864949"},{"nombre":"Beatrys Abuela Samuel","telefono":"56950734030"}];
+function aplicarClientesExcel(st){
+  if(st.clientesExcel) return st;
+  SEED_CLIENTES.forEach(function(c, i){
+    var existe = null;
+    st.clientes.forEach(function(x){ if(x.nombre.toLowerCase()===c.nombre.toLowerCase()) existe = x; });
+    if(existe){ if(!existe.telefono && c.telefono) existe.telefono = c.telefono; }
+    else st.clientes.push({id:'excel-full-'+(i+1), nombre:c.nombre, telefono:c.telefono||''});
+  });
+  st.clientesExcel = true;
+  return st;
+}
 /* Datos precargados del Excel, hoja 'segunda compra' (con correccion: Cony Ortiz = 3 bandejas Super Extra) */
 var SEED_EXCEL = {
   compras: [
@@ -236,6 +250,7 @@ function aplicarSeedExcel(st, fechaFallback){
       st.clientes.push({id:'excel-cli-'+(i+1), nombre:v.cliente, telefono:''});
   });
   st.excelSeed = true;
+  aplicarClientesExcel(st);
   return st;
 }
 function estadoInicial(){
@@ -308,6 +323,7 @@ try { var guardado = localStorage.getItem(CLAVE); habiaDatos = !!guardado; st = 
 catch(e){ st = estadoInicial(); }
 if(!st.tipos) st = estadoInicial();
 if(!habiaDatos){ st = aplicarSeedExcel(st, aStr(new Date())); try { localStorage.setItem(CLAVE, JSON.stringify(st)); } catch(e){} }
+if(!st.clientesExcel){ st = aplicarClientesExcel(st); try { localStorage.setItem(CLAVE, JSON.stringify(st)); } catch(e){} }
 function guardar(){ localStorage.setItem(CLAVE, JSON.stringify(st)); }
 function $(id){ return document.getElementById(id); }
 function fmt(n){ return '$' + Math.round(n).toLocaleString('es-CL'); }
@@ -481,9 +497,9 @@ $('file-importar').addEventListener('change', function(){
   rd.readAsText(f);
 });
 $('btn-seed').addEventListener('click', function(){
-  if(st.excelSeed){ alert('Las ventas del Excel ya estan cargadas en este celular.'); return; }
-  st = aplicarSeedExcel(st, hoy()); guardar(); renderTodo();
-  alert('Ventas del Excel cargadas: 21 ventas, 27 bandejas, $180.800.');
+  if(st.excelSeed && st.clientesExcel){ alert('Los datos del Excel ya estan cargados en este celular.'); return; }
+  st = aplicarSeedExcel(st, hoy()); st = aplicarClientesExcel(st); guardar(); renderTodo();
+  alert('Datos del Excel cargados: 21 ventas y ' + st.clientes.length + ' clientes en total.');
 });
 $('btn-borrar').addEventListener('click', function(){
   if(confirm('Seguro? Se borran compras, ventas, clientes y gastos de este celular.')){ st = estadoInicial(); guardar(); renderTodo(); }
