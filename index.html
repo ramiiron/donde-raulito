@@ -92,6 +92,27 @@ textarea{font-size:13px}
     <div id="pendientes"></div>
   </div>
   <button class="btn" id="btn-compartir">Compartir resumen de la semana (WhatsApp)</button>
+  <button class="btn alt" id="btn-ir-aviso" style="margin-top:10px">📣 Avisar a los clientes: llegó stock nuevo</button>
+</section>
+
+<!-- AVISO STOCK -->
+<section class="view" id="v-aviso">
+  <div class="card">
+    <h2>Aviso de stock nuevo</h2>
+    <img src="flyer.jpg" alt="Flyer Donde Raulito" style="width:100%;border-radius:12px;margin-bottom:10px">
+    <label>Mensaje (se arma solo según el stock y los precios; lo puedes editar)</label>
+    <textarea id="aviso-texto" rows="9"></textarea>
+    <button class="btn ghost" id="btn-aviso-regenerar" style="margin-top:8px">Actualizar mensaje según stock</button>
+    <button class="btn" id="btn-aviso-flyer" style="margin-top:10px">Compartir flyer + mensaje</button>
+    <button class="btn alt" id="btn-aviso-texto" style="margin-top:8px">Compartir solo el mensaje por WhatsApp</button>
+    <p class="note" style="margin-top:10px"><b>Para enviarlo a todos de una vez:</b> crea una <b>Lista de difusión</b> en WhatsApp (⋮ → Nueva difusión → elige tus clientes → Crear). Después comparte el flyer y el mensaje en esa lista: le llega a cada cliente como mensaje individual. Solo lo reciben quienes tengan guardado tu número.</p>
+  </div>
+  <div class="card">
+    <h2>Avisar uno a uno</h2>
+    <p class="note" style="margin-bottom:8px">Toca "Avisar" en cada cliente: se abre su WhatsApp con el mensaje listo, solo falta enviar. La app marca a quiénes ya avisaste hoy.</p>
+    <div id="lista-aviso-clientes"></div>
+    <button class="btn ghost" id="btn-avisos-reset" style="margin-top:10px">Empezar ronda nueva (borrar marcas)</button>
+  </div>
 </section>
 
 <!-- VENTAS -->
@@ -312,6 +333,19 @@ function textoResumenSemana(st, refStr){
     'GANANCIA DE LA SEMANA: ' + f(r.ganancia) + '\n' +
     'Stock que queda: ' + stockTxt;
 }
+function textoAviso(st){
+  var orden = ['jumbo','superextra','extra'];
+  function f(n){ return '$' + Math.round(n).toLocaleString('es-CL'); }
+  var conStock = orden.filter(function(k){ return stockHuevos(st,k) > 0; });
+  var usar = conStock.length ? conStock : orden;
+  var lineas = usar.map(function(k){
+    var t = st.tipos[k];
+    return 'Huevos ' + t.nombre + ' (bandeja de ' + t.huevosPorBandeja + '): ' + f(t.precioVenta);
+  });
+  return '¡Ya tenemos disponibles bandejas de huevos frescos con entrega a domicilio! 🚚🥚\n\n' +
+    lineas.join('\n') +
+    '\n\nEscríbenos para hacer tu pedido y te lo llevamos a la puerta de tu casa.';
+}
 /* ===== Fin funciones puras ===== */
 </script>
 <script>
@@ -324,6 +358,7 @@ catch(e){ st = estadoInicial(); }
 if(!st.tipos) st = estadoInicial();
 if(!habiaDatos){ st = aplicarSeedExcel(st, aStr(new Date())); try { localStorage.setItem(CLAVE, JSON.stringify(st)); } catch(e){} }
 if(!st.clientesExcel){ st = aplicarClientesExcel(st); try { localStorage.setItem(CLAVE, JSON.stringify(st)); } catch(e){} }
+if(!st.avisos) st.avisos = {};
 function guardar(){ localStorage.setItem(CLAVE, JSON.stringify(st)); }
 function $(id){ return document.getElementById(id); }
 function fmt(n){ return '$' + Math.round(n).toLocaleString('es-CL'); }
@@ -391,6 +426,17 @@ function renderClientes(){
     return '<div class="item"><div><div class="t">'+esc(c.nombre)+'</div><div class="s">'+esc(c.telefono||'sin telefono')+'</div></div><div>'+(tel?'<a class="iconbtn" href="https://wa.me/'+tel+'" target="_blank" rel="noopener">WhatsApp</a> <a class="iconbtn" href="tel:+'+tel+'">Llamar</a>':'')+' <button class="del" data-delcli="'+c.id+'">eliminar</button></div></div>';
   }).join('') : '<div class="empty">No hay clientes con ese criterio.</div>';
 }
+function renderAviso(){
+  if(document.activeElement !== $('aviso-texto')) $('aviso-texto').value = st.avisoTexto || textoAviso(st);
+  var conTel = st.clientes.filter(function(c){ return (c.telefono||'').replace(/\D/g,''); });
+  $('lista-aviso-clientes').innerHTML = conTel.length ? conTel.map(function(c){
+    var tel = c.telefono.replace(/\D/g,'');
+    var av = (st.avisos||{})[c.id];
+    var pill = av ? '<span class="pill ok">avisado '+(av===hoy()?'hoy':av)+'</span>' : '<span class="pill">sin avisar</span>';
+    var txt = encodeURIComponent(st.avisoTexto || textoAviso(st));
+    return '<div class="item"><div><div class="t">'+esc(c.nombre)+' '+pill+'</div><div class="s">'+esc(c.telefono)+'</div></div><div><a class="iconbtn" data-avisar="'+c.id+'" href="https://wa.me/'+tel+'?text='+txt+'" target="_blank" rel="noopener">Avisar</a></div></div>';
+  }).join('') : '<div class="empty">No hay clientes con telefono cargados.</div>';
+}
 function renderAjustes(){
   $('precios').innerHTML = Object.keys(st.tipos).map(function(k){
     var t = st.tipos[k];
@@ -398,7 +444,7 @@ function renderAjustes(){
   }).join('');
   $('cfg-inversion').value = st.inversionInicial||0;
 }
-function renderTodo(){ llenarSelects(); renderInicio(); renderVentas(); renderCompras(); renderClientes(); renderAjustes(); }
+function renderTodo(){ llenarSelects(); renderInicio(); renderVentas(); renderCompras(); renderClientes(); renderAjustes(); renderAviso(); }
 
 /* Navegacion */
 Array.prototype.forEach.call(document.querySelectorAll('nav button'), function(b){
@@ -433,7 +479,7 @@ $('btn-compra').addEventListener('click', function(){
   if(cajas<1 || precio<1){ alert('Revisa cajas y precio.'); return; }
   st.tipos[tipo].precioCaja = precio; // el ultimo precio de compra queda como vigente
   st.compras.push({id:uid(), fecha:$('com-fecha').value||hoy(), tipo:tipo, cajas:cajas, precioCaja:precio, mermaHuevos:parseInt($('com-merma').value)||0});
-  guardar(); $('com-merma').value=0; renderTodo(); precioCajaSugerido(); alert('Compra guardada: '+cajas+' caja(s) por '+fmt(cajas*precio));
+  guardar(); $('com-merma').value=0; renderTodo(); precioCajaSugerido(); alert('Compra guardada: '+cajas+' caja(s) por '+fmt(cajas*precio)+'. Ahora puedes avisar a tus clientes desde Inicio → Avisar a los clientes.');
 });
 /* Gastos */
 $('btn-gasto').addEventListener('click', function(){
@@ -504,6 +550,37 @@ $('btn-seed').addEventListener('click', function(){
 $('btn-borrar').addEventListener('click', function(){
   if(confirm('Seguro? Se borran compras, ventas, clientes y gastos de este celular.')){ st = estadoInicial(); guardar(); renderTodo(); }
 });
+/* Aviso de stock */
+function irAviso(){
+  Array.prototype.forEach.call(document.querySelectorAll('nav button'), function(x){ x.classList.remove('on'); });
+  Array.prototype.forEach.call(document.querySelectorAll('.view'), function(v){ v.classList.remove('on'); });
+  $('v-aviso').classList.add('on'); window.scrollTo(0,0); renderAviso();
+}
+$('btn-ir-aviso').addEventListener('click', irAviso);
+$('aviso-texto').addEventListener('input', function(){ st.avisoTexto = this.value; });
+$('btn-aviso-regenerar').addEventListener('click', function(){
+  st.avisoTexto = textoAviso(st); guardar(); $('aviso-texto').value = st.avisoTexto; renderAviso();
+});
+$('btn-aviso-texto').addEventListener('click', function(){
+  var txt = $('aviso-texto').value;
+  if(navigator.share){ navigator.share({text:txt}).catch(function(){}); }
+  else window.open('https://wa.me/?text='+encodeURIComponent(txt), '_blank');
+});
+$('btn-aviso-flyer').addEventListener('click', function(){
+  var txt = $('aviso-texto').value;
+  function soloTexto(){ window.open('https://wa.me/?text='+encodeURIComponent(txt), '_blank'); }
+  if(navigator.canShare){
+    fetch('flyer.jpg').then(function(r){ return r.blob(); }).then(function(b){
+      var file = new File([b], 'donde-raulito-flyer.jpg', {type:'image/jpeg'});
+      if(navigator.canShare({files:[file]})){ navigator.share({files:[file], text:txt}).catch(function(){}); }
+      else if(navigator.share){ navigator.share({text:txt}).catch(function(){}); }
+      else soloTexto();
+    }).catch(soloTexto);
+  } else soloTexto();
+});
+$('btn-avisos-reset').addEventListener('click', function(){
+  if(confirm('Borrar las marcas de avisados y partir una ronda nueva?')){ st.avisos = {}; guardar(); renderAviso(); }
+});
 /* Borrados (delegacion) */
 document.addEventListener('click', function(e){
   var t = e.target;
@@ -512,6 +589,11 @@ document.addEventListener('click', function(e){
   if(t.getAttribute('data-delc')) del('compras', t.getAttribute('data-delc'));
   if(t.getAttribute('data-delg')) del('gastos', t.getAttribute('data-delg'));
   if(t.getAttribute('data-delcli')) del('clientes', t.getAttribute('data-delcli'));
+  if(t.getAttribute('data-avisar')){
+    if(!st.avisos) st.avisos = {};
+    st.avisos[t.getAttribute('data-avisar')] = hoy(); guardar();
+    setTimeout(renderAviso, 600);
+  }
 });
 /* Init */
 $('ven-fecha').value = hoy(); $('com-fecha').value = hoy(); $('gas-fecha').value = hoy();
