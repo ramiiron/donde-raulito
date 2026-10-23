@@ -1,9 +1,10 @@
 'use strict';
-var CACHE = 'donde-raulito-v4';
+var CACHE = 'donde-raulito-v5';
 var ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './flyer.jpg',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
