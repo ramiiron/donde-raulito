@@ -40,6 +40,8 @@ input:focus,select:focus{outline:2px solid var(--brand2);border-color:transparen
 .item .t{font-weight:700;font-size:14px}.item .s{font-size:12px;color:var(--muted)}
 .item .amt{font-weight:800;white-space:nowrap}
 .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:#fef3c7;color:#92400e}
+button.tog{font-size:12px;font-weight:700;padding:6px 10px;border-radius:99px;border:1px solid #fca5a5;background:#fee2e2;color:#991b1b;cursor:pointer}
+button.tog.on{border-color:#86efac;background:#dcfce7;color:#166534}
 .pill.ok{background:#dcfce7;color:#166534}.pill.pend{background:#fee2e2;color:#991b1b}
 .iconbtn{background:#fff7ed;border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;color:var(--brand);text-decoration:none;display:inline-block}
 .del{color:var(--bad);background:none;font-size:13px;padding:6px}
@@ -398,13 +400,13 @@ function renderInicio(){
   var gg = $('gen-ganancia'); gg.textContent = fmt(gen.ganancia); gg.className = 'big ' + (gen.ganancia>=0?'pos':'neg'); gg.style.fontSize='20px';
   var pend = st.ventas.filter(function(v){ return !v.entregado || !v.pagado; });
   $('pendientes').innerHTML = pend.length ? pend.map(function(v){
-    return '<div class="item"><div><div class="t">'+esc(v.cliente)+'</div><div class="s">'+esc(nombreTipo(v.tipo))+' · '+v.bandejas+' bandeja(s) · '+esc(v.fecha)+'</div></div><div>'+(!v.entregado?'<span class="pill pend">sin entregar</span> ':'')+(!v.pagado?'<span class="pill pend">sin pagar</span>':'')+'</div></div>';
+    return '<div class="item"><div><div class="t">'+esc(v.cliente)+'</div><div class="s">'+esc(nombreTipo(v.tipo))+' · '+v.bandejas+' bandeja(s) · '+esc(v.fecha)+'</div><div style="margin-top:6px;display:flex;gap:6px">'+(!v.entregado?'<button class="tog" data-togv="entregado:'+v.id+'">Marcar entregado</button>':'')+(!v.pagado?'<button class="tog" data-togv="pagado:'+v.id+'">Marcar pagado</button>':'')+'</div></div><div class="amt">'+fmt(v.bandejas*v.precio)+'</div></div>';
   }).join('') : '<div class="empty">Nada pendiente. Todo entregado y pagado.</div>';
 }
 function renderVentas(){
   var lista = st.ventas.slice().sort(function(a,b){ return b.fecha.localeCompare(a.fecha) || b.id.localeCompare(a.id); }).slice(0,60);
   $('lista-ventas').innerHTML = lista.length ? lista.map(function(v){
-    return '<div class="item"><div><div class="t">'+esc(v.cliente)+' <span class="pill '+(v.entregado&&v.pagado?'ok':'pend')+'">'+(v.entregado&&v.pagado?'completa':(!v.entregado?'sin entregar':'sin pagar'))+'</span></div><div class="s">'+esc(nombreTipo(v.tipo))+' · '+v.bandejas+' bandeja(s) · '+esc(v.fecha)+'</div></div><div style="text-align:right"><div class="amt">'+fmt(v.bandejas*v.precio)+'</div><button class="del" data-delv="'+v.id+'">eliminar</button></div></div>';
+    return '<div class="item"><div><div class="t">'+esc(v.cliente)+' <span class="pill '+(v.entregado&&v.pagado?'ok':'pend')+'">'+(v.entregado&&v.pagado?'completa':(!v.entregado?'sin entregar':'sin pagar'))+'</span></div><div class="s">'+esc(nombreTipo(v.tipo))+' · '+v.bandejas+' bandeja(s) · '+esc(v.fecha)+'</div><div style="margin-top:6px;display:flex;gap:6px"><button class="tog'+(v.entregado?' on':'')+'" data-togv="entregado:'+v.id+'">'+(v.entregado?'✓ Entregado':'Entregado')+'</button><button class="tog'+(v.pagado?' on':'')+'" data-togv="pagado:'+v.id+'">'+(v.pagado?'✓ Pagado':'Pagado')+'</button></div></div><div style="text-align:right"><div class="amt">'+fmt(v.bandejas*v.precio)+'</div><button class="del" data-delv="'+v.id+'">eliminar</button></div></div>';
   }).join('') : '<div class="empty">Aun no hay ventas registradas.</div>';
 }
 function renderCompras(){
@@ -593,6 +595,11 @@ document.addEventListener('click', function(e){
     if(!st.avisos) st.avisos = {};
     st.avisos[t.getAttribute('data-avisar')] = hoy(); guardar();
     setTimeout(renderAviso, 600);
+  }
+  if(t.getAttribute('data-togv')){
+    var partes = t.getAttribute('data-togv').split(':');
+    var venta = st.ventas.find(function(x){ return x.id === partes[1]; });
+    if(venta){ venta[partes[0]] = !venta[partes[0]]; guardar(); renderTodo(); }
   }
 });
 /* Init */
