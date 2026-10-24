@@ -188,6 +188,14 @@ textarea{font-size:13px}
 <!-- AJUSTES -->
 <section class="view" id="v-ajustes">
   <div class="card">
+    <h2>Datos compartidos (nube)</h2>
+    <p class="note" id="nube-estado" style="margin-bottom:8px">Conectando con la nube...</p>
+    <label>Nombre de este celular (para saber quién hizo el último cambio)</label>
+    <input id="cfg-device" placeholder="Ej: Raúl o Esposa">
+    <button class="btn alt" id="btn-device" style="margin-top:8px">Guardar nombre</button>
+    <p class="note" style="margin-top:8px">Con la nube activada, lo que se anota en un celular aparece en el otro (ventas, compras, clientes, gastos y precios). Sin internet, la app guarda en el celular y sincroniza cuando vuelve la conexión.</p>
+  </div>
+  <div class="card">
     <h2>Precios actuales</h2>
     <div id="precios"></div>
     <p class="note">Si el proveedor cambia un precio, actualízalo aquí. Las compras y ventas nuevas usan estos precios como sugerencia (se pueden cambiar al registrar).</p>
@@ -335,6 +343,18 @@ function textoResumenSemana(st, refStr){
     'GANANCIA DE LA SEMANA: ' + f(r.ganancia) + '\n' +
     'Stock que queda: ' + stockTxt;
 }
+function canon(o){
+  if(o === null || typeof o !== 'object') return JSON.stringify(o);
+  if(Array.isArray(o)) return '[' + o.map(canon).join(',') + ']';
+  return '{' + Object.keys(o).sort().map(function(k){ return JSON.stringify(k) + ':' + canon(o[k]); }).join(',') + '}';
+}
+function calcularOperaciones(sincronizado, arr){
+  var sets = [], deletes = [], mapa = {};
+  arr.forEach(function(o){ mapa[o.id] = canon(o); });
+  arr.forEach(function(o){ if(sincronizado[o.id] !== mapa[o.id]) sets.push(o); });
+  Object.keys(sincronizado).forEach(function(id){ if(!(id in mapa)) deletes.push(id); });
+  return {sets: sets, deletes: deletes, mapa: mapa};
+}
 function textoAviso(st){
   var orden = ['jumbo','superextra','extra'];
   function f(n){ return '$' + Math.round(n).toLocaleString('es-CL'); }
@@ -350,6 +370,9 @@ function textoAviso(st){
 }
 /* ===== Fin funciones puras ===== */
 </script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
 var CLAVE = 'dondeRaulitoV1';
@@ -361,7 +384,7 @@ if(!st.tipos) st = estadoInicial();
 if(!habiaDatos){ st = aplicarSeedExcel(st, aStr(new Date())); try { localStorage.setItem(CLAVE, JSON.stringify(st)); } catch(e){} }
 if(!st.clientesExcel){ st = aplicarClientesExcel(st); try { localStorage.setItem(CLAVE, JSON.stringify(st)); } catch(e){} }
 if(!st.avisos) st.avisos = {};
-function guardar(){ localStorage.setItem(CLAVE, JSON.stringify(st)); }
+function guardar(){ localStorage.setItem(CLAVE, JSON.stringify(st)); programarSubida(); }
 function $(id){ return document.getElementById(id); }
 function fmt(n){ return '$' + Math.round(n).toLocaleString('es-CL'); }
 function hoy(){ return aStr(new Date()); }
@@ -550,7 +573,7 @@ $('btn-seed').addEventListener('click', function(){
   alert('Datos del Excel cargados: 21 ventas y ' + st.clientes.length + ' clientes en total.');
 });
 $('btn-borrar').addEventListener('click', function(){
-  if(confirm('Seguro? Se borran compras, ventas, clientes y gastos de este celular.')){ st = estadoInicial(); guardar(); renderTodo(); }
+  if(confirm('Seguro? Se borran compras, ventas, clientes y gastos. Si la nube está activada, también se borran para el otro celular.')){ st = estadoInicial(); guardar(); renderTodo(); }
 });
 /* Aviso de stock */
 function irAviso(){
@@ -602,9 +625,128 @@ document.addEventListener('click', function(e){
     if(venta){ venta[partes[0]] = !venta[partes[0]]; guardar(); renderTodo(); }
   }
 });
+/* ===== Nube compartida (Firebase, mismo proyecto que Finanzas Familiares; colecciones raulito_*) ===== */
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBa4XTJo47f3ZutCwIabO89SNTopQqTljc",
+  authDomain: "finanzas-bugueno.firebaseapp.com",
+  projectId: "finanzas-bugueno",
+  storageBucket: "finanzas-bugueno.firebasestorage.app",
+  messagingSenderId: "745240953305",
+  appId: "1:745240953305:web:37595a80c087fef80799c8"
+};
+var nubeOn = false, nubeDb = null, nubeAplicando = false, nubeTimer = null, nubePendiente = false;
+var nubeSync = {ventas:{}, compras:{}, clientes:{}, gastos:{}};
+var nubeCfgSync = '';
+var COLECCIONES = {ventas:'raulito_ventas', compras:'raulito_compras', clientes:'raulito_clientes', gastos:'raulito_gastos'};
+function nombreDispositivo(){ try { return localStorage.getItem('raulito-device') || ''; } catch(e){ return ''; } }
+function cfgCompartida(fuente){
+  return {tipos: fuente.tipos, inversionInicial: fuente.inversionInicial || 0, avisoTexto: fuente.avisoTexto || '', avisos: fuente.avisos || {}};
+}
+function pintarEstadoNube(){
+  var el = $('nube-estado'); if(!el) return;
+  el.textContent = nubeOn ? '☁ Compartido ACTIVADO: los cambios se ven en los dos celulares.' : 'Guardando solo en este celular (la nube no conectó; revisa internet y recarga la app).';
+}
+function renderSeguro(){
+  var ae = document.activeElement;
+  if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT') && ae.id !== 'cli-buscar'){ nubePendiente = true; return; }
+  renderTodo();
+}
+document.addEventListener('focusout', function(){ if(nubePendiente){ nubePendiente = false; setTimeout(renderSeguro, 50); } });
+function programarSubida(){
+  if(!nubeOn || nubeAplicando) return;
+  clearTimeout(nubeTimer);
+  nubeTimer = setTimeout(subirCambios, 1200);
+}
+function subirCambios(){
+  if(!nubeOn || !nubeDb || nubeAplicando) return;
+  try {
+    var batch = nubeDb.batch(); var n = 0;
+    Object.keys(COLECCIONES).forEach(function(col){
+      var ops = calcularOperaciones(nubeSync[col], st[col]);
+      ops.sets.forEach(function(o){ batch.set(nubeDb.collection(COLECCIONES[col]).doc(o.id), o); n++; });
+      ops.deletes.forEach(function(id){ batch.delete(nubeDb.collection(COLECCIONES[col]).doc(id)); n++; });
+    });
+    var cfgStr = canon(cfgCompartida(st));
+    if(cfgStr !== nubeCfgSync){
+      var cfg = cfgCompartida(st); cfg.por = nombreDispositivo(); cfg.actualizado = Date.now();
+      batch.set(nubeDb.collection('raulito_config').doc('app'), cfg); n++;
+    }
+    if(!n) return;
+    batch.commit().catch(function(e){ console.log('Error subiendo a la nube', e); });
+  } catch(e){ console.log('Error preparando subida', e); }
+}
+function escucharColeccion(col){
+  nubeDb.collection(COLECCIONES[col]).onSnapshot(function(snap){
+    var arr = [], mapa = {};
+    snap.forEach(function(d){ var o = d.data(); o.id = d.id; arr.push(o); mapa[d.id] = canon(o); });
+    nubeSync[col] = mapa;
+    if(col === 'clientes') arr.sort(function(a,b){ return a.nombre.localeCompare(b.nombre); });
+    if(canon(arr) !== canon(st[col])){
+      nubeAplicando = true;
+      st[col] = arr;
+      try { localStorage.setItem(CLAVE, JSON.stringify(st)); } catch(e){}
+      nubeAplicando = false;
+      renderSeguro();
+    }
+  }, function(e){ console.log('Error escuchando '+col, e); });
+}
+function escucharConfig(){
+  nubeDb.collection('raulito_config').doc('app').onSnapshot(function(doc){
+    if(!doc.exists) return;
+    var cfgRemota = cfgCompartida(doc.data());
+    nubeCfgSync = canon(cfgRemota);
+    if(canon(cfgCompartida(st)) !== nubeCfgSync){
+      nubeAplicando = true;
+      st.tipos = cfgRemota.tipos; st.inversionInicial = cfgRemota.inversionInicial;
+      st.avisoTexto = cfgRemota.avisoTexto; st.avisos = cfgRemota.avisos || {};
+      try { localStorage.setItem(CLAVE, JSON.stringify(st)); } catch(e){}
+      nubeAplicando = false;
+      renderSeguro();
+    }
+  }, function(e){ console.log('Error escuchando config', e); });
+}
+function subirTodoInicial(){
+  var batch = nubeDb.batch(); var n = 0;
+  Object.keys(COLECCIONES).forEach(function(col){
+    st[col].forEach(function(o){ batch.set(nubeDb.collection(COLECCIONES[col]).doc(o.id), o); n++; });
+  });
+  var cfg = cfgCompartida(st); cfg.por = nombreDispositivo(); cfg.actualizado = Date.now();
+  batch.set(nubeDb.collection('raulito_config').doc('app'), cfg);
+  return batch.commit();
+}
+function initNube(){
+  if(typeof firebase === 'undefined' || !FIREBASE_CONFIG){ pintarEstadoNube(); return; }
+  (async function(){
+    try {
+      if(!firebase.apps.length){ firebase.initializeApp(FIREBASE_CONFIG); await firebase.auth().signInAnonymously(); }
+      nubeDb = firebase.firestore();
+      try { await nubeDb.enablePersistence({synchronizeTabs:true}); } catch(e){}
+      if(localStorage.getItem('raulito-migrado') !== '1'){
+        var s1 = await nubeDb.collection('raulito_ventas').limit(1).get();
+        var c1 = await nubeDb.collection('raulito_config').doc('app').get();
+        if(s1.empty && !c1.exists && (st.ventas.length || st.clientes.length)) await subirTodoInicial();
+        localStorage.setItem('raulito-migrado', '1');
+      }
+      nubeOn = true;
+      Object.keys(COLECCIONES).forEach(escucharColeccion);
+      escucharConfig();
+      pintarEstadoNube();
+      programarSubida();
+    } catch(e){
+      nubeOn = false; console.log('Nube no disponible', e); pintarEstadoNube();
+    }
+  })();
+}
+window.addEventListener('online', function(){ if(!nubeOn) initNube(); else programarSubida(); });
+$('btn-device').addEventListener('click', function(){
+  try { localStorage.setItem('raulito-device', $('cfg-device').value.trim()); } catch(e){}
+  alert('Nombre guardado en este celular.');
+});
 /* Init */
 $('ven-fecha').value = hoy(); $('com-fecha').value = hoy(); $('gas-fecha').value = hoy();
+$('cfg-device').value = nombreDispositivo();
 renderTodo(); precioVentaSugerido(); precioCajaSugerido();
+initNube();
 </script>
 <script>
 'use strict';
