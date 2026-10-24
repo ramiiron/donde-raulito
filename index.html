@@ -675,12 +675,62 @@ function subirCambios(){
     batch.commit().catch(function(e){ console.log('Error subiendo a la nube', e); });
   } catch(e){ console.log('Error preparando subida', e); }
 }
+/* Rescate v8: datos locales anteriores a la nube se fusionan (no se reemplazan) la primera vez */
+var RESCATE_PENDIENTE = (function(){ try { return localStorage.getItem('raulito-rescate-v8') !== '1'; } catch(e){ return false; } })();
+var rescateHecho = {}, rescateConfigHecho = !RESCATE_PENDIENTE, SEMILLA = null;
+if(!RESCATE_PENDIENTE){ rescateHecho = {ventas:true, compras:true, clientes:true, gastos:true}; }
+function mapasSemilla(){
+  var s = aplicarSeedExcel(estadoInicial(), '2026-10-23'); s = aplicarClientesExcel(s);
+  var m = { _cfg: cfgCompartida(s) };
+  Object.keys(COLECCIONES).forEach(function(col){ m[col] = {}; s[col].forEach(function(o){ m[col][o.id] = o; }); });
+  return m;
+}
+function igualRescate(a, b, id){
+  function copia(o){
+    var c = JSON.parse(JSON.stringify(o));
+    var sinFecha = SEED_EXCEL.ventas.some(function(v, i){ return v.fecha === null && id === 'excel-v' + (i + 1); });
+    if(sinFecha) delete c.fecha;
+    return canon(c);
+  }
+  return copia(a) === copia(b);
+}
+function fusionarRescate(col, nubeArr){
+  if(!SEMILLA) SEMILLA = mapasSemilla();
+  var seedMap = SEMILLA[col] || {}, nubeMap = {}, localMap = {}, ids = {}, merged = [];
+  nubeArr.forEach(function(o){ nubeMap[o.id] = o; });
+  st[col].forEach(function(o){ localMap[o.id] = o; });
+  Object.keys(nubeMap).forEach(function(id){ ids[id] = 1; });
+  Object.keys(localMap).forEach(function(id){ ids[id] = 1; });
+  Object.keys(ids).forEach(function(id){
+    var n = nubeMap[id], l = localMap[id], s = seedMap[id];
+    if(n && !l) merged.push(n);
+    else if(l && !n) merged.push(l);
+    else if(igualRescate(l, n, id)) merged.push(n);
+    else if(s && igualRescate(n, s, id) && !igualRescate(l, s, id)) merged.push(l);
+    else merged.push(n);
+  });
+  return merged;
+}
+function revisarRescateCompleto(){
+  if(!RESCATE_PENDIENTE) return;
+  var cols = Object.keys(COLECCIONES);
+  for(var i = 0; i < cols.length; i++){ if(!rescateHecho[cols[i]]) return; }
+  if(!rescateConfigHecho) return;
+  try { localStorage.setItem('raulito-rescate-v8', '1'); } catch(e){}
+  RESCATE_PENDIENTE = false;
+}
 function escucharColeccion(col){
   nubeDb.collection(COLECCIONES[col]).onSnapshot(function(snap){
     var arr = [], mapa = {};
     snap.forEach(function(d){ var o = d.data(); o.id = d.id; arr.push(o); mapa[d.id] = canon(o); });
     nubeSync[col] = mapa;
     if(col === 'clientes') arr.sort(function(a,b){ return a.nombre.localeCompare(b.nombre); });
+    var rescatado = false;
+    if(RESCATE_PENDIENTE && !rescateHecho[col]){
+      rescateHecho[col] = true;
+      if(canon(arr) !== canon(st[col])){ arr = fusionarRescate(col, arr); rescatado = true; }
+      revisarRescateCompleto();
+    }
     if(canon(arr) !== canon(st[col])){
       nubeAplicando = true;
       st[col] = arr;
@@ -688,6 +738,7 @@ function escucharColeccion(col){
       nubeAplicando = false;
       renderSeguro();
     }
+    if(rescatado) programarSubida();
   }, function(e){ console.log('Error escuchando '+col, e); });
 }
 function escucharConfig(){
@@ -695,6 +746,14 @@ function escucharConfig(){
     if(!doc.exists) return;
     var cfgRemota = cfgCompartida(doc.data());
     nubeCfgSync = canon(cfgRemota);
+    if(RESCATE_PENDIENTE && !rescateConfigHecho){
+      rescateConfigHecho = true;
+      if(!SEMILLA) SEMILLA = mapasSemilla();
+      var cfgLocal = cfgCompartida(st);
+      var quedaLocal = canon(cfgLocal) !== nubeCfgSync && canon(cfgRemota) === canon(SEMILLA._cfg) && canon(cfgLocal) !== canon(SEMILLA._cfg);
+      revisarRescateCompleto();
+      if(quedaLocal){ programarSubida(); return; }
+    }
     if(canon(cfgCompartida(st)) !== nubeCfgSync){
       nubeAplicando = true;
       st.tipos = cfgRemota.tipos; st.inversionInicial = cfgRemota.inversionInicial;
