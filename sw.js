@@ -1,5 +1,5 @@
 'use strict';
-var CACHE = 'donde-raulito-v6';
+var CACHE = 'donde-raulito-v7';
 var ASSETS = [
   './',
   './index.html',
